@@ -177,137 +177,150 @@ class="filter-select">
  </div>
 </template>
 <script setup>
-const { data: items, refresh: refreshItems, pending: loading,
-error } = await useFetch('/api/items', {
- lazy: true,
- server: true,
- pick: ['data'],
- query: computed(() => ({
- search: filters.search,
- category: filters.category,
- completed: filters.completed
- }))
-})
+// 1. ВСЕ переменные
 const filters = reactive({
   search: '',
- category: '',
- completed: ''
+  category: '',
+  completed: ''
 })
+
 const newItem = reactive({
- name: '',
- quantity: 1,
- category: ''
+  name: '',
+  quantity: 1,
+  category: ''
 })
+
 const message = ref(null)
 const addingItem = ref(false)
 const loadingStats = ref(false)
-const { data: stats, refresh: refreshStats } = await
-useFetch('/api/stats', {
- lazy: true,
- server: true
-})
 const isDevelopment = process.dev
+
+// 2. useFetch (который использует filters)
+const { data: items, refresh: refreshItems, pending: loading, error } = await useFetch('/api/items', {
+  lazy: true,
+  server: true,
+  pick: ['data'],
+  query: computed(() => ({
+    search: filters.search,
+    category: filters.category,
+    completed: filters.completed
+  }))
+})
+
+const { data: stats, refresh: refreshStats } = await useFetch('/api/stats', {
+  lazy: true,
+  server: true
+})
+
+// 3. Функции
 const showMessage = (text, type = 'success') => {
- message.value = { text, type }
- setTimeout(() => {
- message.value = null
- }, 3000)
+  message.value = { text, type }
+  setTimeout(() => {
+    message.value = null
+  }, 3000)
 }
+
 const loadItems = async () => {
- await refreshItems()
- if (!error.value) {
- showMessage('Список обновлен', 'success')
- }
+  await refreshItems()
+  if (!error.value) {
+    showMessage('Список обновлен', 'success')
+  }
 }
+
 const loadStats = async () => {
- loadingStats.value = true
- await refreshStats()
- loadingStats.value = false
- showMessage('Статистика обновлена', 'info')
+  loadingStats.value = true
+  await refreshStats()
+  loadingStats.value = false
+  showMessage('Статистика обновлена', 'info')
 }
+
 const addItem = async () => {
- if (!newItem.name.trim()) {
- showMessage('Введите название товара', 'error')
- return
- }
+  if (!newItem.name.trim()) {
+    showMessage('Введите название товара', 'error')
+    return
+  }
 
- addingItem.value = true
+  addingItem.value = true
 
- try {
-  const { data: result } = await useFetch('/api/items', {
- method: 'POST',
- body: newItem
- })
+  try {
+    const { data: result } = await useFetch('/api/items', {
+      method: 'POST',
+      body: newItem
+    })
 
- if (result.value?.status === 'success') {
- showMessage('Товар успешно добавлен!', 'success')
+    if (result.value?.status === 'success') {
+      showMessage('Товар успешно добавлен!', 'success')
 
- newItem.name = ''
- newItem.quantity = 1
- newItem.category = ''
+      newItem.name = ''
+      newItem.quantity = 1
+      newItem.category = ''
 
- await Promise.all([refreshItems(), refreshStats()])
- }
- } catch (err) {
- showMessage('Ошибка при добавлении товара', 'error')
- } finally {
- addingItem.value = false
- }
+      await Promise.all([refreshItems(), refreshStats()])
+    }
+  } catch (err) {
+    showMessage('Ошибка при добавлении товара', 'error')
+  } finally {
+    addingItem.value = false
+  }
 }
+
 const deleteItem = async (id) => {
- if (!confirm('Удалить этот товар?')) return
+  if (!confirm('Удалить этот товар?')) return
 
- try {
- await $fetch(`/api/items/${id}`, {
- method: 'DELETE'
- })
+  try {
+    await $fetch(`/api/items/${id}`, {
+      method: 'DELETE'
+    })
 
- showMessage('Товар удален', 'success')
- await Promise.all([refreshItems(), refreshStats()])
- } catch (err) {
- showMessage('Ошибка при удалении товара', 'error')
- }
+    showMessage('Товар удален', 'success')
+    await Promise.all([refreshItems(), refreshStats()])
+  } catch (err) {
+    showMessage('Ошибка при удалении товара', 'error')
+  }
 }
+
 const toggleItem = async (item) => {
- try {
- await $fetch(`/api/items/${item.id}`, {
- method: 'PUT',
- body: {
- ...item,
- completed: !item.completed
- }
- })
+  try {
+    await $fetch(`/api/items/${item.id}`, {
+      method: 'PUT',
+      body: {
+        ...item,
+        completed: !item.completed
+      }
+    })
 
- showMessage(`Товар ${!item.completed ? 'выполнен' : 'возвращен в список'}`, 'info')
- await Promise.all([refreshItems(), refreshStats()])
- } catch (err) {
- showMessage('Ошибка при обновлении товара', 'error')
- }
+    showMessage(`Товар ${!item.completed ? 'выполнен' : 'возвращен в список'}`, 'info')
+    await Promise.all([refreshItems(), refreshStats()])
+  } catch (err) {
+    showMessage('Ошибка при обновлении товара', 'error')
+  }
 }
- const editItem = async (item) => {
- const newName = prompt('Введите новое название:', item.name)
- if (!newName || newName === item.name) return
 
- try {
- await $fetch(`/api/items/${item.id}`, {
- method: 'PUT',
- body: {
- ...item,
- name: newName
- }
- })
+const editItem = async (item) => {
+  const newName = prompt('Введите новое название:', item.name)
+  if (!newName || newName === item.name) return
 
- showMessage('Название обновлено', 'success')
- await refreshItems()
- } catch (err) {
- showMessage('Ошибка при редактировании товара', 'error')
- }
+  try {
+    await $fetch(`/api/items/${item.id}`, {
+      method: 'PUT',
+      body: {
+        ...item,
+        name: newName
+      }
+    })
+
+    showMessage('Название обновлено', 'success')
+    await refreshItems()
+  } catch (err) {
+    showMessage('Ошибка при редактировании товара', 'error')
+  }
 }
+
 const formatTime = (timestamp) => {
- return new Date(timestamp).toLocaleTimeString('ru-RU', {
- hour: '2-digit',
- minute: '2-digit',
- second: '2-digit'
- })
+  return new Date(timestamp).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }
 </script>
