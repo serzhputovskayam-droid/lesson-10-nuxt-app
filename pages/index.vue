@@ -91,7 +91,7 @@ class="filter-select">
 попытку</button>
  </div>
  <!-- Пустой список -->
- <div v-else-if="!items.length" class="empty-state">
+ <div v-else-if="!items?.data?.length" class="empty-state">
  <p>Ваш список покупок пуст</p>
  <p>Добавьте первый товар!</p>
  </div>
@@ -99,7 +99,7 @@ class="filter-select">
  <!-- Список товаров -->
  <div v-else class="items-section">
  <div class="section-header">
- <h2>Список товаров ({{ items.length }})</h2>
+ <h2>Список товаров ({{ items?.data?.length || 0 }})</h2>
  <div class="section-actions">
  <button @click="loadItems" class="action-btn"
 :disabled="loading">
@@ -110,7 +110,7 @@ class="filter-select">
 
  <div class="items-grid">
  <ProductCard
- v-for="item in items"
+ v-for="item in items?.data || []"
  :key="item.id"
  :product="item"
  @delete="deleteItem(item.id)"
@@ -264,9 +264,13 @@ const addItem = async () => {
   }
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ: удаление без confirm на сервере
 const deleteItem = async (id) => {
-  if (!confirm('Удалить этот товар?')) return
-
+  // confirm() работает только в браузере
+  if (process.client) {
+    if (!confirm('Удалить этот товар?')) return
+  }
+  
   try {
     await $fetch(`/api/items/${id}`, {
       method: 'DELETE'
@@ -296,9 +300,18 @@ const toggleItem = async (item) => {
   }
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ: редактирование без prompt на сервере
 const editItem = async (item) => {
-  const newName = prompt('Введите новое название:', item.name)
-  if (!newName || newName === item.name) return
+  let newName = ''
+  
+  // prompt() работает только в браузере
+  if (process.client) {
+    newName = prompt('Введите новое название:', item.name)
+    if (!newName || newName === item.name) return
+  } else {
+    // На сервере просто возвращаем оригинальное имя
+    return
+  }
 
   try {
     await $fetch(`/api/items/${item.id}`, {
